@@ -1,13 +1,34 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
+import { PricingWorkbench } from "@/components/workbench/PricingWorkbench";
+import { AIClustering } from "@/components/clustering/AIClustering";
+import { SimulationPanel } from "@/components/simulation/SimulationPanel";
 
 const Index = () => {
+  const [currentView, setCurrentView] = useState("dashboard");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleNavigateToWorkbench = () => {
+    setCurrentView("workbench");
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <DashboardLayout
+      currentView={currentView}
+      onViewChange={setCurrentView}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+    >
+      {currentView === "dashboard" && (
+        <ExecutiveDashboard onNavigateToWorkbench={handleNavigateToWorkbench} />
+      )}
+      {currentView === "workbench" && (
+        <PricingWorkbench searchQuery={searchQuery} />
+      )}
+      {currentView === "clustering" && <AIClustering />}
+      {currentView === "simulation" && <SimulationPanel />}
+    </DashboardLayout>
   );
 };
 
