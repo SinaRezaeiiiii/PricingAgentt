@@ -53,9 +53,9 @@ export function DashboardLayout({
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-                <Sparkles className="h-4 w-4 text-sidebar-primary-foreground" />
+                <LayoutDashboard className="h-4 w-4 text-sidebar-primary-foreground" />
               </div>
-              <span className="font-semibold text-sidebar-primary-foreground">PriceAI</span>
+              <span className="font-semibold text-sidebar-primary-foreground">Genpact</span>
             </div>
           )}
           <Button

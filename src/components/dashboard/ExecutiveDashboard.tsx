@@ -1,8 +1,9 @@
+import { useState, useEffect } from "react";
 import { DollarSign, TrendingUp, RotateCcw, Package } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { AlertCard } from "./AlertCard";
 import { RevenueChart } from "./RevenueChart";
-import { dashboardMetrics } from "@/data/mockData";
+import { dataStore } from "@/data/dataStore";
 
 const formatCurrency = (value: number) => {
   if (value >= 1000000) {
@@ -19,6 +20,60 @@ interface ExecutiveDashboardProps {
 }
 
 export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboardProps) {
+  const [metrics, setMetrics] = useState({
+    totalNetPurchaseAmount: 0,
+    avgMargin: 0,
+    totalReturnsAmount: 0,
+    totalPartsCount: 0,
+    highReturnsParts: 0,
+    lowMarginHighVolume: 0,
+    avgLandedCost: 0,
+    avgNetPrice: 0,
+  });
+
+  useEffect(() => {
+    const updateMetrics = () => {
+      const data = dataStore.getCombinedData();
+      
+      if (data.length === 0) {
+        setMetrics({
+          totalNetPurchaseAmount: 0,
+          avgMargin: 0,
+          totalReturnsAmount: 0,
+          totalPartsCount: 0,
+          highReturnsParts: 0,
+          lowMarginHighVolume: 0,
+          avgLandedCost: 0,
+          avgNetPrice: 0,
+        });
+        return;
+      }
+
+      const totalNetPurchaseAmount = data.reduce((sum, p) => sum + p["Customer Pay Purchases Amount"], 0);
+      const avgMargin = data.reduce((sum, p) => sum + p["Margin %"], 0) / data.length;
+      const totalReturnsAmount = data.reduce((sum, p) => sum + p["Part Returns Amount"], 0);
+      const highReturnsParts = data.filter(p => p["Part Returns Amount"] > 5000).length;
+      const lowMarginHighVolume = data.filter(p => p["Margin %"] < 15 && p["Customer Pay Part Purchase Qty"] > 1000).length;
+      const avgLandedCost = data.reduce((sum, p) => sum + p["Landed Cost"], 0) / data.length;
+      const avgNetPrice = data.reduce((sum, p) => sum + p["Net Price New"], 0) / data.length;
+
+      setMetrics({
+        totalNetPurchaseAmount,
+        avgMargin,
+        totalReturnsAmount,
+        totalPartsCount: data.length,
+        highReturnsParts,
+        lowMarginHighVolume,
+        avgLandedCost,
+        avgNetPrice,
+      });
+    };
+
+    updateMetrics();
+    const unsubscribe = dataStore.subscribe(updateMetrics);
+    return unsubscribe;
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -33,7 +88,7 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total Net Purchase Amount"
-          value={formatCurrency(dashboardMetrics.totalNetPurchaseAmount)}
+          value={formatCurrency(metrics.totalNetPurchaseAmount)}
           change={{ value: "+8.2%", positive: true }}
           icon={DollarSign}
           variant="profit"
@@ -41,14 +96,14 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
         />
         <MetricCard
           title="Average Margin"
-          value={`${dashboardMetrics.avgMargin.toFixed(1)}%`}
+          value={`${metrics.avgMargin.toFixed(1)}%`}
           change={{ value: "+2.3%", positive: true }}
           icon={TrendingUp}
           subtitle="Landed Cost vs Net Price"
         />
         <MetricCard
           title="Total Returns Amount"
-          value={formatCurrency(dashboardMetrics.totalReturnsAmount)}
+          value={formatCurrency(metrics.totalReturnsAmount)}
           change={{ value: "+5.1%", positive: false }}
           icon={RotateCcw}
           variant="loss"
@@ -56,7 +111,7 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
         />
         <MetricCard
           title="Active Parts"
-          value={dashboardMetrics.totalPartsCount.toLocaleString()}
+          value={metrics.totalPartsCount.toLocaleString()}
           icon={Package}
           subtitle="Parts in catalog"
         />
@@ -67,14 +122,14 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
         <AlertCard
           title="High Returns Detected"
           description="Parts with return value exceeding $5,000"
-          count={dashboardMetrics.highReturnsParts}
+          count={metrics.highReturnsParts}
           variant="critical"
           onClick={onNavigateToWorkbench}
         />
         <AlertCard
           title="Margin Optimization Opportunity"
           description="High volume parts with margin below 15%"
-          count={dashboardMetrics.lowMarginHighVolume}
+          count={metrics.lowMarginHighVolume}
           variant="warning"
           onClick={onNavigateToWorkbench}
         />
@@ -92,16 +147,16 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
             <div className="space-y-4">
               <div className="flex justify-between items-center pb-3 border-b">
                 <span className="text-sm text-muted-foreground">Avg. Landed Cost</span>
-                <span className="font-mono font-medium">{formatCurrency(dashboardMetrics.avgLandedCost)}</span>
+                <span className="font-mono font-medium">{formatCurrency(metrics.avgLandedCost)}</span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b">
                 <span className="text-sm text-muted-foreground">Avg. Net Price</span>
-                <span className="font-mono font-medium">{formatCurrency(dashboardMetrics.avgNetPrice)}</span>
+                <span className="font-mono font-medium">{formatCurrency(metrics.avgNetPrice)}</span>
               </div>
               <div className="flex justify-between items-center pb-3 border-b">
                 <span className="text-sm text-muted-foreground">Price Spread</span>
                 <span className="font-mono font-medium text-profit">
-                  +{formatCurrency(dashboardMetrics.avgNetPrice - dashboardMetrics.avgLandedCost)}
+                  +{formatCurrency(metrics.avgNetPrice - metrics.avgLandedCost)}
                 </span>
               </div>
               <div className="flex justify-between items-center">

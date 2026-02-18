@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -8,7 +9,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { monthlyRevenueData } from "@/data/mockData";
+import { dataStore } from "@/data/dataStore";
+import { MonthlyRevenue } from "@/data/mockData";
 
 const formatCurrency = (value: number) => {
   if (value >= 1000000) {
@@ -48,6 +50,37 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function RevenueChart() {
+  const [chartData, setChartData] = useState<MonthlyRevenue[]>([]);
+
+  useEffect(() => {
+    const updateChart = () => {
+      const data = dataStore.getCombinedData();
+      
+      if (data.length === 0) {
+        setChartData([]);
+        return;
+      }
+
+      // Generate monthly data (simplified - you could aggregate by actual date if available)
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const totalCustomerPay = data.reduce((sum, p) => sum + p["Customer Pay Purchases Amount"], 0);
+      const totalManufacturerPay = data.reduce((sum, p) => sum + p["Manufacturer Pay Purchases Amount"], 0);
+      
+      // Distribute evenly across months (in real scenario, use actual transaction dates)
+      const monthlyData = months.map(month => ({
+        month,
+        "Customer Pay Purchases Amount": totalCustomerPay / 12,
+        "Manufacturer Pay Purchases Amount": totalManufacturerPay / 12,
+      }));
+
+      setChartData(monthlyData);
+    };
+
+    updateChart();
+    const unsubscribe = dataStore.subscribe(updateChart);
+    return unsubscribe;
+  }, []);
+
   return (
     <div className="rounded-xl border bg-card p-5 shadow-card">
       <div className="mb-4">
@@ -57,9 +90,14 @@ export function RevenueChart() {
         </p>
       </div>
       <div className="h-[320px]">
+        {chartData.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            Keine Daten verfügbar. Bitte laden Sie Excel-Dateien hoch.
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={monthlyRevenueData}
+            data={chartData}
             margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
           >
             <CartesianGrid
@@ -106,6 +144,7 @@ export function RevenueChart() {
             />
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

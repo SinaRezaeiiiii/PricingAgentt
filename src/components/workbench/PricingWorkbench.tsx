@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { partsData, PartData } from "@/data/mockData";
-import { Button } from "@/components/ui/button";
+import { dataStore } from "@/data/dataStore";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { PartDetailModal } from "./PartDetailModal";
+import { DataUploadManager } from "./DataUploadManager";
 
 const formatCurrency = (value: number | null) => {
   if (value === null) return "—";
@@ -37,7 +38,19 @@ export function PricingWorkbench({ searchQuery }: PricingWorkbenchProps) {
   const [marginFilter, setMarginFilter] = useState<string>("all");
   const [selectedPart, setSelectedPart] = useState<PartData | null>(null);
   const [editingCell, setEditingCell] = useState<{ partNumber: string; field: string } | null>(null);
-  const [localData, setLocalData] = useState(partsData);
+  const [localData, setLocalData] = useState<PartData[]>([]);
+
+  // Subscribe to data store changes
+  useEffect(() => {
+    const updateData = () => {
+      const data = dataStore.getCombinedData();
+      setLocalData(data);
+    };
+
+    updateData(); // Initial load
+    const unsubscribe = dataStore.subscribe(updateData);
+    return unsubscribe;
+  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -156,6 +169,9 @@ export function PricingWorkbench({ searchQuery }: PricingWorkbenchProps) {
 
   return (
     <div className="space-y-4">
+      {/* Data Upload Section */}
+      <DataUploadManager />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -258,7 +274,7 @@ export function PricingWorkbench({ searchQuery }: PricingWorkbenchProps) {
             <tbody>
               {filteredAndSortedData.map((part, index) => (
                 <tr
-                  key={part["Part Number"]}
+                  key={part["Part Number"] || `part-${index}`}
                   onClick={() => setSelectedPart(part)}
                   className={cn(
                     "border-b cursor-pointer transition-colors hover:bg-table-hover",

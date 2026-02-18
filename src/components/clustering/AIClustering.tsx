@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScatterChart,
   Scatter,
@@ -10,7 +10,8 @@ import {
   ZAxis,
   Cell,
 } from "recharts";
-import { clusterData, ClusterData } from "@/data/mockData";
+import { ClusterData } from "@/data/mockData";
+import { dataStore } from "@/data/dataStore";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +101,42 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export function AIClustering() {
   const [selectedCluster, setSelectedCluster] = useState<ClusterData["cluster"] | "all">("all");
+  const [clusterData, setClusterData] = useState<ClusterData[]>([]);
+
+  // Subscribe to data store and generate cluster data
+  useEffect(() => {
+    const updateData = () => {
+      const data = dataStore.getCombinedData();
+      // Generate cluster data from uploaded data
+      const clustered = data.map((part) => {
+        let cluster: ClusterData["cluster"] = "standard";
+        
+        // Clustering logic
+        const highVolume = part["Customer Pay Part Purchase Qty"] > 1000;
+        const lowMargin = part["Margin %"] < 15;
+        const highMargin = part["Margin %"] > 30;
+        const highReturns = part["Part Returns Amount"] > 5000;
+
+        if (highVolume && lowMargin) {
+          cluster = "traffic-builder";
+        } else if (highMargin && part["Customer Pay Part Purchase Qty"] > 500) {
+          cluster = "premium";
+        } else if (highReturns || (part["Margin %"] < 10 && part["Customer Pay Part Purchase Qty"] < 100)) {
+          cluster = "problem";
+        }
+
+        return {
+          ...part,
+          cluster,
+        };
+      });
+      setClusterData(clustered);
+    };
+
+    updateData();
+    const unsubscribe = dataStore.subscribe(updateData);
+    return unsubscribe;
+  }, []);
 
   const filteredData = selectedCluster === "all"
     ? clusterData
@@ -184,14 +221,14 @@ export function AIClustering() {
               />
               <XAxis
                 type="number"
-                dataKey="Customer Pay Part Purchase Qty"
-                name="Sales Velocity"
+                dataKey="Landed Cost"
+                name="Landed Cost"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                tickFormatter={(value) => value.toLocaleString()}
+                tickFormatter={(value) => `$${value.toFixed(0)}`}
                 label={{
-                  value: "Customer Pay Part Purchase Qty (Velocity)",
+                  value: "Landed Cost ($)",
                   position: "bottom",
                   offset: 0,
                   fill: "hsl(var(--muted-foreground))",
@@ -200,14 +237,14 @@ export function AIClustering() {
               />
               <YAxis
                 type="number"
-                dataKey="Landed Cost"
-                name="Landed Cost"
+                dataKey="Margin %"
+                name="Margin %"
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                tickFormatter={(value) => `$${value}`}
+                tickFormatter={(value) => `${value.toFixed(1)}%`}
                 label={{
-                  value: "Landed Cost ($)",
+                  value: "Margin %",
                   angle: -90,
                   position: "insideLeft",
                   fill: "hsl(var(--muted-foreground))",
