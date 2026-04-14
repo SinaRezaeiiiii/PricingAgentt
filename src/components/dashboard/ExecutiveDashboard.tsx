@@ -19,6 +19,34 @@ interface ExecutiveDashboardProps {
   onNavigateToWorkbench: () => void;
 }
 
+const buildPercentChange = (currentValue: number, previousValue: number) => {
+  if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue) || previousValue <= 0) {
+    return undefined;
+  }
+
+  const changePercent = ((currentValue - previousValue) / previousValue) * 100;
+  return {
+    value: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}%`,
+    positive: changePercent >= 0,
+  };
+};
+
+interface FranchiseInsight {
+  name: string;
+  amount: number;
+  share: number;
+}
+
+const getPercentile = (values: number[], percentile: number) => {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(percentile * sorted.length) - 1));
+  return sorted[index] || 0;
+};
+
 export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboardProps) {
   const [metrics, setMetrics] = useState({
     totalNetPurchaseAmount: 0,
@@ -29,6 +57,12 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
     lowMarginHighVolume: 0,
     avgLandedCost: 0,
     avgNetPrice: 0,
+    franchiseCount: 0,
+    revenueChange: undefined as { value: string; positive: boolean } | undefined,
+    topFranchises: [] as FranchiseInsight[],
+    highReturnsThreshold: 0,
+    lowMarginThreshold: 0,
+    highVolumeThreshold: 0,
   });
 
   useEffect(() => {
@@ -45,17 +79,72 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
           lowMarginHighVolume: 0,
           avgLandedCost: 0,
           avgNetPrice: 0,
+          franchiseCount: 0,
+          revenueChange: undefined,
+          topFranchises: [],
+          highReturnsThreshold: 0,
+          lowMarginThreshold: 0,
+          highVolumeThreshold: 0,
         });
         return;
       }
 
-      const totalNetPurchaseAmount = data.reduce((sum, p) => sum + p["Customer Pay Purchases Amount"], 0);
-      const avgMargin = data.reduce((sum, p) => sum + p["Margin %"], 0) / data.length;
-      const totalReturnsAmount = data.reduce((sum, p) => sum + p["Part Returns Amount"], 0);
-      const highReturnsParts = data.filter(p => p["Part Returns Amount"] > 5000).length;
-      const lowMarginHighVolume = data.filter(p => p["Margin %"] < 15 && p["Customer Pay Part Purchase Qty"] > 1000).length;
+      const totalCustomerPayAmount = data.reduce((sum, p) => sum + (p["Customer Pay Purchases Amount"] || 0), 0);
+      const totalManufacturerPayAmount = data.reduce(
+        (sum, p) => sum + (p["Manufacturer Pay Purchases Amount"] || 0),
+        0
+      );
+      const totalNetPurchaseAmount = totalCustomerPayAmount + totalManufacturerPayAmount;
+      const margins = data.map((p) => Number(p["Margin %"]) || 0);
+      const netQuantities = data.map((p) => Number(p["Net Part Purchase Quantity"]) || 0);
+      const returnAmounts = data.map((p) => Math.abs(Number(p["Part Returns Amount"]) || 0));
+
+      const avgMargin = margins.reduce((sum, value) => sum + value, 0) / data.length;
+      const totalReturnsAmount = returnAmounts.reduce((sum, value) => sum + value, 0);
+      const highReturnsThreshold = getPercentile(returnAmounts, 0.9);
+      const lowMarginThreshold = getPercentile(margins, 0.2);
+      const highVolumeThreshold = getPercentile(netQuantities, 0.8);
+
+      const highReturnsParts = data.filter(
+        (p) => Math.abs(p["Part Returns Amount"] || 0) >= highReturnsThreshold
+      ).length;
+      const lowMarginHighVolume = data.filter(
+        (p) =>
+          (p["Margin %"] || 0) <= lowMarginThreshold &&
+          (p["Net Part Purchase Quantity"] || 0) >= highVolumeThreshold
+      ).length;
       const avgLandedCost = data.reduce((sum, p) => sum + p["Landed Cost"], 0) / data.length;
       const avgNetPrice = data.reduce((sum, p) => sum + p["Net Price New"], 0) / data.length;
+
+      const franchiseRevenueMap = data.reduce((acc, part) => {
+        const franchise = String(part["Franchise"] || "Unknown").trim() || "Unknown";
+        const partRevenue = (part["Customer Pay Purchases Amount"] || 0) + (part["Manufacturer Pay Purchases Amount"] || 0);
+        acc.set(franchise, (acc.get(franchise) || 0) + partRevenue);
+        return acc;
+      }, new Map<string, number>());
+
+      const topFranchises = Array.from(franchiseRevenueMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          share: totalNetPurchaseAmount > 0 ? (amount / totalNetPurchaseAmount) * 100 : 0,
+        }));
+
+      const monthlyRevenue = dataStore.getMonthlyRevenueByPaymentType(2);
+      let revenueChange: { value: string; positive: boolean } | undefined;
+      if (monthlyRevenue.length >= 2) {
+        const previous = monthlyRevenue[monthlyRevenue.length - 2];
+        const current = monthlyRevenue[monthlyRevenue.length - 1];
+        const previousTotal =
+          (previous["Customer Pay Purchases Amount"] || 0) +
+          (previous["Manufacturer Pay Purchases Amount"] || 0);
+        const currentTotal =
+          (current["Customer Pay Purchases Amount"] || 0) +
+          (current["Manufacturer Pay Purchases Amount"] || 0);
+        revenueChange = buildPercentChange(currentTotal, previousTotal);
+      }
 
       setMetrics({
         totalNetPurchaseAmount,
@@ -66,6 +155,12 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
         lowMarginHighVolume,
         avgLandedCost,
         avgNetPrice,
+        franchiseCount: franchiseRevenueMap.size,
+        revenueChange,
+        topFranchises,
+        highReturnsThreshold,
+        lowMarginThreshold,
+        highVolumeThreshold,
       });
     };
 
@@ -89,22 +184,20 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
         <MetricCard
           title="Total Net Purchase Amount"
           value={formatCurrency(metrics.totalNetPurchaseAmount)}
-          change={{ value: "+8.2%", positive: true }}
+          change={metrics.revenueChange}
           icon={DollarSign}
           variant="profit"
-          subtitle="Revenue from all part sales"
+          subtitle="Customer + Manufacturer Pay"
         />
         <MetricCard
           title="Average Margin"
           value={`${metrics.avgMargin.toFixed(1)}%`}
-          change={{ value: "+2.3%", positive: true }}
           icon={TrendingUp}
           subtitle="Landed Cost vs Net Price"
         />
         <MetricCard
           title="Total Returns Amount"
           value={formatCurrency(metrics.totalReturnsAmount)}
-          change={{ value: "+5.1%", positive: false }}
           icon={RotateCcw}
           variant="loss"
           subtitle="Value of returned parts"
@@ -121,14 +214,14 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
       <div className="grid gap-4 lg:grid-cols-2">
         <AlertCard
           title="High Returns Detected"
-          description="Parts with return value exceeding $5,000"
+          description={`Top 10% return exposure (>= ${formatCurrency(metrics.highReturnsThreshold)})`}
           count={metrics.highReturnsParts}
           variant="critical"
           onClick={onNavigateToWorkbench}
         />
         <AlertCard
           title="Margin Optimization Opportunity"
-          description="High volume parts with margin below 15%"
+          description={`Margin <= ${metrics.lowMarginThreshold.toFixed(1)}% with qty >= ${Math.round(metrics.highVolumeThreshold).toLocaleString()}`}
           count={metrics.lowMarginHighVolume}
           variant="warning"
           onClick={onNavigateToWorkbench}
@@ -161,7 +254,7 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Franchises</span>
-                <span className="font-mono font-medium">5</span>
+                <span className="font-mono font-medium">{metrics.franchiseCount}</span>
               </div>
             </div>
           </div>
@@ -169,30 +262,28 @@ export function ExecutiveDashboard({ onNavigateToWorkbench }: ExecutiveDashboard
           {/* Top performers mini table */}
           <div className="rounded-xl border bg-card p-5 shadow-card">
             <h3 className="font-semibold mb-4">Top Franchises by Revenue</h3>
-            <div className="space-y-3">
-              {[
-                { name: "Mercedes-Benz", amount: 2450000, share: 35 },
-                { name: "BMW", amount: 1890000, share: 27 },
-                { name: "Audi", amount: 1260000, share: 18 },
-                { name: "Porsche", amount: 840000, share: 12 },
-                { name: "VW", amount: 560000, share: 8 },
-              ].map((franchise, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm font-medium">{franchise.name}</span>
-                      <span className="text-sm text-muted-foreground">{franchise.share}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div 
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${franchise.share}%` }}
-                      />
+            {metrics.topFranchises.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine Umsatzdaten für Franchises verfügbar.</p>
+            ) : (
+              <div className="space-y-3">
+                {metrics.topFranchises.map((franchise, i) => (
+                  <div key={`${franchise.name}-${i}`} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">{franchise.name}</span>
+                        <span className="text-sm text-muted-foreground">{franchise.share.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${Math.min(franchise.share, 100)}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

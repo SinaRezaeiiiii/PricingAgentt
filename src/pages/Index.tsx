@@ -4,6 +4,7 @@ import { ExecutiveDashboard } from "@/components/dashboard/ExecutiveDashboard";
 import { PricingWorkbench } from "@/components/workbench/PricingWorkbench";
 import { AIClustering } from "@/components/clustering/AIClustering";
 import { SimulationPanel } from "@/components/simulation/SimulationPanel";
+import { BusinessRules } from "@/components/business/BusinessRules";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -28,6 +29,7 @@ const Index = () => {
       )}
       {currentView === "clustering" && <AIClustering />}
       {currentView === "simulation" && <SimulationPanel />}
+      {currentView === "business-rules" && <BusinessRules />}
     </DashboardLayout>
   );
 };

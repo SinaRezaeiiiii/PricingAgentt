@@ -15,6 +15,7 @@ app.use((req, res) => {
 
 // Start server
 const server = app.listen(PORT, () => {
+  const shouldAutoOpen = process.env.NO_AUTO_OPEN !== '1';
   console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
@@ -24,17 +25,30 @@ const server = app.listen(PORT, () => {
 
 ✅ Server is running at: http://localhost:${PORT}
 
-🌐 Opening in your default browser...
+🌐 ${shouldAutoOpen ? 'Opening in your default browser...' : 'Auto-open disabled (NO_AUTO_OPEN=1)'}
 📁 Serving files from: ${path.join(__dirname, 'dist')}
 
 Press Ctrl+C to stop the server.
   `);
+
+  if (!shouldAutoOpen) {
+    return;
+  }
   
   // Open browser automatically
   const url = `http://localhost:${PORT}`;
-  const start = process.platform === 'win32' ? 'start' : 
-                process.platform === 'darwin' ? 'open' : 'xdg-open';
-  exec(`${start} ${url}`);
+  const openCommand =
+    process.platform === 'win32'
+      ? `start "" "${url}"`
+      : process.platform === 'darwin'
+        ? `open "${url}"`
+        : `xdg-open "${url}"`;
+
+  exec(openCommand, (error) => {
+    if (error) {
+      console.warn('⚠️ Could not auto-open browser. Open manually:', url);
+    }
+  });
 });
 
 // Handle server errors

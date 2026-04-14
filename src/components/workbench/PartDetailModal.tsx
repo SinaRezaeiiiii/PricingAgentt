@@ -135,27 +135,39 @@ export function PartDetailModal({ part, isOpen, onClose }: PartDetailModalProps)
 
           <Separator />
 
-          {/* Dealer list */}
+          {/* Dealer summary */}
           <div>
             <h4 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              Dealers Purchasing This Part
+              Dealer Information
             </h4>
-            <div className="space-y-2">
-              {part["Dealer Identifiers"].map((dealer, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between rounded-lg border bg-card p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Building2 className="h-4 w-4" />
-                    </div>
-                    <span className="font-medium">{dealer}</span>
-                  </div>
-                  <Badge variant="outline">Active</Badge>
+            <div className="rounded-lg bg-muted/50 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Total Dealers</p>
+                  <p className="text-2xl font-bold">{part["Dealer Identifiers"].length}</p>
                 </div>
-              ))}
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Building2 className="h-6 w-6" />
+                </div>
+              </div>
+              {part["Dealer Identifiers"].length > 0 && (
+                <div className="mt-3 pt-3 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">Sample Dealer IDs:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {part["Dealer Identifiers"].slice(0, 10).map((dealer, index) => (
+                      <Badge key={index} variant="secondary" className="font-mono text-xs">
+                        {dealer}
+                      </Badge>
+                    ))}
+                    {part["Dealer Identifiers"].length > 10 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{part["Dealer Identifiers"].length - 10} more
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

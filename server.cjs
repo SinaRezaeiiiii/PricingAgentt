@@ -8,9 +8,11 @@ const PORT = 8080;
 // Determine the correct dist path
 // When running as .exe (pkg), use path relative to executable
 // When running normally, use path relative to this file
-const distPath = process.pkg 
+const distPath = process.pkg
   ? path.join(path.dirname(process.execPath), 'dist')
-  : path.join(__dirname, 'dist');
+  : (process.nexe
+      ? path.join(__dirname, 'dist')
+      : path.join(__dirname, 'dist'));
 
 console.log('╔══════════════════════════════════════════════════════════╗');
 console.log('║                                                          ║');
@@ -34,15 +36,29 @@ const server = app.listen(PORT, () => {
   const url = `http://localhost:${PORT}`;
   console.log('✅ Server is running at:', url);
   console.log('');
-  console.log('🌐 Opening in your default browser...');
+  const shouldAutoOpen = process.env.NO_AUTO_OPEN !== '1';
+  console.log(shouldAutoOpen ? '🌐 Opening in your default browser...' : '🌐 Auto-open disabled (NO_AUTO_OPEN=1)');
   console.log('');
   console.log('Press Ctrl+C to stop the server.');
   console.log('');
   
+  if (!shouldAutoOpen) {
+    return;
+  }
+
   // Open browser automatically
-  const start = process.platform === 'win32' ? 'start' : 
-                process.platform === 'darwin' ? 'open' : 'xdg-open';
-  exec(`${start} ${url}`);
+  const openCommand =
+    process.platform === 'win32'
+      ? `start "" "${url}"`
+      : process.platform === 'darwin'
+        ? `open "${url}"`
+        : `xdg-open "${url}"`;
+
+  exec(openCommand, (error) => {
+    if (error) {
+      console.warn('⚠️ Could not auto-open browser. Open manually:', url);
+    }
+  });
 });
 
 // Handle server errors

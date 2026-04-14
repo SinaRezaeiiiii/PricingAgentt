@@ -10,6 +10,18 @@ export interface PartData {
   "Vendor": string;
   "Predecessor": string | null;
   "Franchise": string;
+  "Division": string;
+  "S Part Category": string;
+  "Legacy_Cluster": string;
+  "Legacy Cluster Name": string;
+  "AI_Cluster_ID": number;
+  
+  // Additional Classification Fields
+  "Warranty > 35%": boolean;
+  "OTC Workshop Channel": string;
+  "Competitive Classification": string;
+  "Lifecycle Segment": string;
+  "Account Assignment Code": string;
   
   // Sales Metrics
   "Customer Pay Part Purchase Qty": number;
@@ -26,6 +38,7 @@ export interface PartData {
   
   // Calculated
   "Margin %": number;
+  "Calculated Score"?: number;
   
   // Transaction data
   "Dealer Identifiers": string[];
@@ -154,6 +167,16 @@ export const partsData: PartData[] = Array.from({ length: 100 }, (_, i) => {
     "Vendor": vendors[Math.floor(Math.random() * vendors.length)],
     "Predecessor": generatePredecessor(generatePartNumber(franchise, i + 1000), Math.random() > 0.6),
     "Franchise": franchise,
+    "Division": "",
+    "S Part Category": "",
+    "Legacy_Cluster": "",
+    "Legacy Cluster Name": "",
+    "AI_Cluster_ID": 0,
+    "Warranty > 35%": false,
+    "OTC Workshop Channel": "",
+    "Competitive Classification": "",
+    "Lifecycle Segment": "",
+    "Account Assignment Code": "",
     "Customer Pay Part Purchase Qty": customerQty,
     "Part Returns Amount": Math.round(returnsQty * netPriceNew * 100) / 100,
     "Net Part Purchase Quantity": customerQty - returnsQty,

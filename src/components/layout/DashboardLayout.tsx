@@ -4,6 +4,7 @@ import {
   Table2, 
   Sparkles, 
   FlaskConical, 
+  Scale,
   Search,
   Menu,
   Settings,
@@ -28,6 +29,7 @@ const navItems = [
   { id: "workbench", label: "Pricing Workbench", icon: Table2 },
   { id: "clustering", label: "AI Clustering", icon: Sparkles },
   { id: "simulation", label: "Simulation", icon: FlaskConical },
+  { id: "business-rules", label: "Business Rules", icon: Scale },
 ];
 
 export function DashboardLayout({

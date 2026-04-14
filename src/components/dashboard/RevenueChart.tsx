@@ -10,7 +10,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { dataStore } from "@/data/dataStore";
-import { MonthlyRevenue } from "@/data/mockData";
+
+interface MonthlyRevenue {
+  month: string;
+  "Customer Pay Purchases Amount": number;
+  "Manufacturer Pay Purchases Amount": number;
+}
 
 const formatCurrency = (value: number) => {
   if (value >= 1000000) {
@@ -54,25 +59,7 @@ export function RevenueChart() {
 
   useEffect(() => {
     const updateChart = () => {
-      const data = dataStore.getCombinedData();
-      
-      if (data.length === 0) {
-        setChartData([]);
-        return;
-      }
-
-      // Generate monthly data (simplified - you could aggregate by actual date if available)
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const totalCustomerPay = data.reduce((sum, p) => sum + p["Customer Pay Purchases Amount"], 0);
-      const totalManufacturerPay = data.reduce((sum, p) => sum + p["Manufacturer Pay Purchases Amount"], 0);
-      
-      // Distribute evenly across months (in real scenario, use actual transaction dates)
-      const monthlyData = months.map(month => ({
-        month,
-        "Customer Pay Purchases Amount": totalCustomerPay / 12,
-        "Manufacturer Pay Purchases Amount": totalManufacturerPay / 12,
-      }));
-
+      const monthlyData = dataStore.getMonthlyRevenueByPaymentType(12);
       setChartData(monthlyData);
     };
 
@@ -86,7 +73,7 @@ export function RevenueChart() {
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Revenue by Payment Type</h3>
         <p className="text-sm text-muted-foreground">
-          Customer Pay vs Manufacturer Pay (Warranty) - Last 12 Months
+          Customer Pay vs Manufacturer Pay (Warranty) based on Reporting Date
         </p>
       </div>
       <div className="h-[320px]">
